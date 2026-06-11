@@ -5,8 +5,12 @@ import createJobsRouter from './routes/jobs.js';
 import type { AuthStore } from './auth-store.js';
 import type { JobStore } from './store.js';
 
+
+
 export function createApp(jobStore: JobStore, authStore: AuthStore) {
   const app = express();
+
+  app.set('trust proxy', 1);
 
   app.use(
     cors({
