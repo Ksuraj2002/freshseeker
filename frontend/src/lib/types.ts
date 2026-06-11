@@ -1,0 +1,29 @@
+export type JobStatus = 'pending' | 'applied';
+
+export type Job = {
+  _id: string;
+  title: string;
+  company: string;
+  url: string;
+  notes?: string;
+  status: JobStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type JobInput = {
+  title: string;
+  company: string;
+  url: string;
+  notes?: string;
+};
+
+export type AuthProvider = 'local' | 'google';
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  provider: AuthProvider;
+  avatarUrl: string;
+};

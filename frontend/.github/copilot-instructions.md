@@ -1,0 +1,5 @@
+- Project: Job Orbit, a Next.js frontend with an Express and MongoDB backend.
+- Core flow: save job links, mark jobs as applied, filter by status, and keep applied jobs in a separate section.
+- UI direction: bold, modern, dark dashboard with gradient accents and responsive cards.
+- Validation: keep the Next.js and backend TypeScript builds clean and prefer focused lint/build checks after edits.
+- Run mode: frontend uses `npm run dev`; backend uses `npm run dev --prefix backend` and expects `MONGO_URI` unless a local fallback is added later.
