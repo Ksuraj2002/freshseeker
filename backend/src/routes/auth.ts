@@ -62,9 +62,9 @@ function issueSession(res: Response, user: Awaited<ReturnType<AuthStore['createL
 }
 
 function clearSession(res: Response) {
-  appendCookie(res, serializeCookie(authCookieName, '', { maxAge: 0 }));
+  // FIX HERE: Add secure and sameSite so the deletion cookie overwrites properly
+  appendCookie(res, serializeCookie(authCookieName, '', { maxAge: 0, secure: true, sameSite: 'None' }));
 }
-
 function setOAuthState(res: Response, state: string) {
   appendCookie(
     res, 
@@ -77,7 +77,8 @@ function setOAuthState(res: Response, state: string) {
 }
 
 function clearOAuthState(res: Response) {
-  appendCookie(res, serializeCookie(oauthStateCookieName, '', { maxAge: 0 }));
+  // FIX HERE: Add secure and sameSite here too
+  appendCookie(res, serializeCookie(oauthStateCookieName, '', { maxAge: 0, secure: true, sameSite: 'None' }));
 }
 
 function getQueryValue(value: unknown) {
