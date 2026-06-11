@@ -50,7 +50,15 @@ function issueSession(res: Response, user: Awaited<ReturnType<AuthStore['createL
     },
     jwtSecret
   );
-  appendCookie(res, serializeCookie(authCookieName, token, { maxAge: 60 * 60 * 24 * 7 }));
+  appendCookie(
+    res, 
+    serializeCookie(authCookieName, token, { 
+      maxAge: 60 * 60 * 24 * 7,
+      httpOnly: true, // Assuming your helper supports it
+      secure: true,   // CRITICAL FOR CROSS-DOMAIN DEPLOYMENTS
+      sameSite: 'None' // CRITICAL FOR VERCEL -> RENDER COOKIES
+    })
+  );
 }
 
 function clearSession(res: Response) {
@@ -58,7 +66,14 @@ function clearSession(res: Response) {
 }
 
 function setOAuthState(res: Response, state: string) {
-  appendCookie(res, serializeCookie(oauthStateCookieName, state, { maxAge: 10 * 60 }));
+  appendCookie(
+    res, 
+    serializeCookie(oauthStateCookieName, state, { 
+      maxAge: 10 * 60,
+      secure: true,   // CRITICAL FOR DEPLOYED FLOWS
+      sameSite: 'None' 
+    })
+  );
 }
 
 function clearOAuthState(res: Response) {
