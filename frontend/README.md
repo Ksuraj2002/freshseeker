@@ -1,4 +1,4 @@
-# Job Orbit
+# Freshseeker
 
 A polished job application tracker built with Next.js, Node.js, Express, and MongoDB.
 
