@@ -10,6 +10,7 @@ import {
   signup,
 } from '@/lib/api';
 import type { AuthUser } from '@/lib/types';
+import Link from 'next/dist/client/link';
 
 type Mode = 'login' | 'signup';
 
@@ -156,14 +157,22 @@ export function AuthPanel() {
             <p className="mt-1 text-sm text-white/65">{user.email}</p>
             <p className="mt-1 text-xs uppercase tracking-[0.24em] text-white/45">{user.provider} account</p>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={submitting}
-            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:opacity-60"
-          >
-            Sign out
-          </button>
+          <div className="flex w-full flex-wrap justify-end gap-3 pt-4 sm:w-auto sm:flex-nowrap sm:gap-4 sm:pt-0">
+            <Link
+              href="/templates"
+              className="inline-flex whitespace-nowrap items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400"
+            >
+              Message templates
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={submitting}
+              className="inline-flex whitespace-nowrap items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         {status ? (
           <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
