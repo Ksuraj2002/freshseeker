@@ -33,6 +33,14 @@ const userSchema = new Schema(
       type: String,
       default: '',
     },
+    linkedinUrl: { type: String, default: '' },
+    githubUrl: { type: String, default: '' },
+    leetcodeUrl: { type: String, default: '' },
+    codechefUrl: { type: String, default: '' },
+    resumes: {
+      type: [{ name: String, url: String }],
+      default: [],
+    },
   },
   {
     timestamps: true,

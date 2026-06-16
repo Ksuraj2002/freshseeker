@@ -10,7 +10,7 @@ import {
   signup,
 } from '@/lib/api';
 import type { AuthUser } from '@/lib/types';
-import Link from 'next/dist/client/link';
+import Link from 'next/link';
 
 type Mode = 'login' | 'signup';
 
@@ -73,7 +73,7 @@ export function AuthPanel() {
         });
     } else {
       const reason = params.get('reason') ?? 'Authentication failed';
-      setStatus(reason.replaceAll('_', ' '));
+      queueMicrotask(() => setStatus(reason.replaceAll('_', ' ')));
     }
 
     params.delete('auth');
@@ -163,6 +163,12 @@ export function AuthPanel() {
               className="inline-flex whitespace-nowrap items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400"
             >
               Message templates
+            </Link>
+            <Link
+              href="/links"
+              className="inline-flex whitespace-nowrap items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400"
+            >
+              Profile links
             </Link>
             <button
               type="button"

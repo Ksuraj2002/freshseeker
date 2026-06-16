@@ -11,6 +11,11 @@ export type StoredUser = {
   provider: AuthProvider;
   providerId: string;
   avatarUrl: string;
+  linkedinUrl: string;
+  githubUrl: string;
+  leetcodeUrl: string;
+  codechefUrl: string;
+  resumes: { name: string; url: string }[];
   createdAt: string;
   updatedAt: string;
 };
@@ -52,6 +57,25 @@ function toPublicUser(user: StoredUser): PublicUser {
   };
 }
 
+function mapResumes(value: unknown): StoredUser['resumes'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((resume) => {
+    if (!resume || typeof resume !== 'object') {
+      return [];
+    }
+
+    const item = resume as { name?: unknown; url?: unknown };
+    if (typeof item.name !== 'string' || typeof item.url !== 'string') {
+      return [];
+    }
+
+    return [{ name: item.name, url: item.url }];
+  });
+}
+
 function mapMongoUser(user: {
   _id: { toString(): string };
   name: string;
@@ -60,6 +84,11 @@ function mapMongoUser(user: {
   provider: AuthProvider;
   providerId?: string;
   avatarUrl?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+  leetcodeUrl?: string;
+  codechefUrl?: string;
+  resumes?: unknown;
   createdAt: Date;
   updatedAt: Date;
 }): StoredUser {
@@ -71,6 +100,11 @@ function mapMongoUser(user: {
     provider: user.provider,
     providerId: user.providerId ?? '',
     avatarUrl: user.avatarUrl ?? '',
+    linkedinUrl: user.linkedinUrl ?? '',
+    githubUrl: user.githubUrl ?? '',
+    leetcodeUrl: user.leetcodeUrl ?? '',
+    codechefUrl: user.codechefUrl ?? '',
+    resumes: mapResumes(user.resumes),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
@@ -112,6 +146,11 @@ function createMemoryStore(): AuthStore {
         provider: 'local',
         providerId: '',
         avatarUrl: '',
+        linkedinUrl: '',
+        githubUrl: '',
+        leetcodeUrl: '',
+        codechefUrl: '',
+        resumes: [],
         createdAt: now,
         updatedAt: now,
       });
@@ -130,6 +169,11 @@ function createMemoryStore(): AuthStore {
           provider: input.provider,
           providerId: input.providerId,
           avatarUrl: input.avatarUrl ?? existing.avatarUrl,
+          linkedinUrl: existing.linkedinUrl ?? '',
+          githubUrl: existing.githubUrl ?? '',
+          leetcodeUrl: existing.leetcodeUrl ?? '',
+          codechefUrl: existing.codechefUrl ?? '',
+          resumes: existing.resumes ?? [],
           updatedAt: now,
         };
         return saveUser(updated);
@@ -143,6 +187,11 @@ function createMemoryStore(): AuthStore {
         provider: input.provider,
         providerId: input.providerId,
         avatarUrl: input.avatarUrl ?? '',
+        linkedinUrl: '',
+        githubUrl: '',
+        leetcodeUrl: '',
+        codechefUrl: '',
+        resumes: [],
         createdAt: now,
         updatedAt: now,
       });
