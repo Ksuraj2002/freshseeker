@@ -4,12 +4,11 @@ import { z } from 'zod';
 import type { AuthStore } from '../auth-store.js';
 import { publicUserFromStored } from '../auth-store.js';
 import { hashPassword, verifyPassword } from '../auth/passwords.js';
-import { createStateToken, signSessionToken, verifySessionToken } from '../auth/token.js';
+import { createStateToken, signSessionToken } from '../auth/token.js';
 import { parseCookies, serializeCookie } from '../auth/cookies.js';
+import { authCookieName, getSessionFromRequest, jwtSecret } from '../auth/session.js';
 
-const authCookieName = 'job_orbit_session';
 const oauthStateCookieName = 'job_orbit_oauth_state';
-const jwtSecret = process.env.AUTH_JWT_SECRET ?? 'job-orbit-dev-secret';
 const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4000';
 
@@ -103,16 +102,6 @@ function redirectFrontend(res: Response, query: Record<string, string>) {
 
 function redirectAuthError(res: Response, reason: string) {
   redirectFrontend(res, { auth: 'error', reason });
-}
-
-function getSessionFromRequest(req: Request) {
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies[authCookieName];
-  if (!token) {
-    return null;
-  }
-
-  return verifySessionToken(token, jwtSecret);
 }
 
 async function exchangeGoogleCode(code: string) {

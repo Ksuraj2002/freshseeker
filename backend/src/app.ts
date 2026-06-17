@@ -2,12 +2,14 @@ import cors from 'cors';
 import express from 'express';
 import createAuthRouter from './routes/auth.js';
 import createJobsRouter from './routes/jobs.js';
+import createTemplatesRouter from './routes/templates.js';
 import type { AuthStore } from './auth-store.js';
 import type { JobStore } from './store.js';
+import type { MessageTemplateStore } from './template-store.js';
 
 
 
-export function createApp(jobStore: JobStore, authStore: AuthStore) {
+export function createApp(jobStore: JobStore, authStore: AuthStore, templateStore: MessageTemplateStore) {
   const app = express();
 
   app.set('trust proxy', 1);
@@ -26,6 +28,7 @@ export function createApp(jobStore: JobStore, authStore: AuthStore) {
 
   app.use('/api/auth', createAuthRouter(authStore));
   app.use('/api/jobs', createJobsRouter(jobStore));
+  app.use('/api/templates', createTemplatesRouter(templateStore));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : 'Unknown server error';

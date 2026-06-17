@@ -1,19 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
-
-type TemplateCategory = 'recruiter' | 'referral' | 'about-me';
-
-type MessageTemplate = {
-  id: string;
-  title: string;
-  category: TemplateCategory;
-  message: string;
-  updatedAt: string;
-};
+import { createTemplate, deleteTemplate, listTemplates, updateTemplate } from '@/lib/api';
+import type { MessageTemplate, TemplateCategory } from '@/lib/types';
 
 const storageKey = 'freshseeker-message-templates';
+const migrationKey = 'freshseeker-message-templates-migrated';
 
 const categories: Array<{ label: string; value: TemplateCategory | 'all'; hint: string }> = [
   { label: 'All templates', value: 'all', hint: 'Everything saved' },
@@ -28,12 +21,20 @@ const categoryLabels: Record<TemplateCategory, string> = {
   'about-me': 'About me',
 };
 
-function isTemplate(value: unknown): value is MessageTemplate {
+type LegacyMessageTemplate = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  message: string;
+  updatedAt: string;
+};
+
+function isTemplate(value: unknown): value is LegacyMessageTemplate {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const item = value as Partial<MessageTemplate>;
+  const item = value as Partial<LegacyMessageTemplate>;
   return (
     typeof item.id === 'string' &&
     typeof item.title === 'string' &&
@@ -51,6 +52,14 @@ function loadTemplates() {
   } catch {
     return [];
   }
+}
+
+function markLegacyTemplatesMigrated() {
+  window.localStorage.setItem(migrationKey, 'true');
+}
+
+function legacyTemplatesMigrated() {
+  return window.localStorage.getItem(migrationKey) === 'true';
 }
 
 function formatUpdatedAt(value: string) {
@@ -71,19 +80,55 @@ export function TemplateManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setTemplates(loadTemplates());
-      setLoaded(true);
-    });
+    let active = true;
+
+    listTemplates()
+      .then(async (data) => {
+        if (!active) {
+          return;
+        }
+
+        if (data.length === 0 && !legacyTemplatesMigrated()) {
+          const legacyTemplates = loadTemplates();
+          if (legacyTemplates.length > 0) {
+            const migratedTemplates = await Promise.all(
+              legacyTemplates.map((template) =>
+                createTemplate({
+                  title: template.title,
+                  category: template.category,
+                  message: template.message,
+                }),
+              ),
+            );
+            markLegacyTemplatesMigrated();
+            if (active) {
+              setTemplates(migratedTemplates);
+              setNotice('Local templates were synced to your account.');
+              setLoaded(true);
+            }
+            return;
+          }
+        }
+
+        markLegacyTemplatesMigrated();
+        setTemplates(data);
+        setNotice('');
+        setLoaded(true);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setNotice(error instanceof Error ? error.message : 'Failed to load templates.');
+          setLoaded(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
-
-  useEffect(() => {
-    if (loaded) {
-      window.localStorage.setItem(storageKey, JSON.stringify(templates));
-    }
-  }, [loaded, templates]);
 
   const visibleTemplates = useMemo(
     () => templates.filter((template) => filter === 'all' || template.category === filter),
@@ -106,7 +151,7 @@ export function TemplateManager() {
     setEditingId(null);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!title.trim() || !message.trim()) {
@@ -114,22 +159,26 @@ export function TemplateManager() {
       return;
     }
 
-    const nextTemplate: MessageTemplate = {
-      id: editingId ?? crypto.randomUUID(),
+    const payload = {
       title: title.trim(),
       category,
       message: message.trim(),
-      updatedAt: new Date().toISOString(),
     };
 
-    setTemplates((current) =>
-      editingId
-        ? current.map((template) => (template.id === editingId ? nextTemplate : template))
-        : [nextTemplate, ...current],
-    );
-    setFilter(category);
-    setNotice(editingId ? 'Template updated.' : 'Template saved.');
-    resetForm();
+    try {
+      const savedTemplate = editingId ? await updateTemplate(editingId, payload) : await createTemplate(payload);
+
+      setTemplates((current) =>
+        editingId
+          ? current.map((template) => (template.id === editingId ? savedTemplate : template))
+          : [savedTemplate, ...current],
+      );
+      setFilter(category);
+      setNotice(editingId ? 'Template updated.' : 'Template saved.');
+      resetForm();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Failed to save template.');
+    }
   };
 
   const handleEdit = (template: MessageTemplate) => {
@@ -141,11 +190,19 @@ export function TemplateManager() {
   };
 
   const handleDelete = (templateId: string) => {
-    setTemplates((current) => current.filter((template) => template.id !== templateId));
-    if (editingId === templateId) {
-      resetForm();
-    }
-    setNotice('Template deleted.');
+    startTransition(() => {
+      deleteTemplate(templateId)
+        .then(() => {
+          setTemplates((current) => current.filter((template) => template.id !== templateId));
+          if (editingId === templateId) {
+            resetForm();
+          }
+          setNotice('Template deleted.');
+        })
+        .catch((error: unknown) => {
+          setNotice(error instanceof Error ? error.message : 'Failed to delete template.');
+        });
+    });
   };
 
   const handleCopy = async (template: MessageTemplate) => {
@@ -249,7 +306,8 @@ export function TemplateManager() {
 
           <button
             type="submit"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-rose-400 px-5 py-3.5 text-sm font-semibold text-white transition duration-200 hover:scale-[1.01] hover:shadow-[0_18px_50px_rgba(14,165,233,0.3)]"
+            disabled={isPending}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-rose-400 px-5 py-3.5 text-sm font-semibold text-white transition duration-200 hover:scale-[1.01] hover:shadow-[0_18px_50px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {editingId ? 'Update template' : 'Save template'}
           </button>
@@ -329,7 +387,8 @@ export function TemplateManager() {
                       <button
                         type="button"
                         onClick={() => handleDelete(template.id)}
-                        className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/20"
+                        disabled={isPending}
+                        className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Delete
                       </button>

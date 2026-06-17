@@ -27,3 +27,20 @@ export type AuthUser = {
   provider: AuthProvider;
   avatarUrl: string;
 };
+
+export type TemplateCategory = 'recruiter' | 'referral' | 'about-me';
+
+export type MessageTemplate = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MessageTemplateInput = {
+  title: string;
+  category: TemplateCategory;
+  message: string;
+};

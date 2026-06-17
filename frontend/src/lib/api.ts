@@ -1,4 +1,4 @@
-import type { AuthUser, Job, JobInput, JobStatus } from '@/lib/types';
+import type { AuthUser, Job, JobInput, JobStatus, MessageTemplate, MessageTemplateInput } from '@/lib/types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -88,6 +88,30 @@ export function markJobPending(jobId: string) {
 
 export function deleteJob(jobId: string) {
   return request<{ success: true }>(`/api/jobs/${jobId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listTemplates() {
+  return request<MessageTemplate[]>('/api/templates');
+}
+
+export function createTemplate(payload: MessageTemplateInput) {
+  return request<MessageTemplate>('/api/templates', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateTemplate(templateId: string, payload: MessageTemplateInput) {
+  return request<MessageTemplate>(`/api/templates/${templateId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTemplate(templateId: string) {
+  return request<{ success: true }>(`/api/templates/${templateId}`, {
     method: 'DELETE',
   });
 }
