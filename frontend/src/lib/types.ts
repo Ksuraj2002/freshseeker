@@ -44,3 +44,16 @@ export type MessageTemplateInput = {
   category: TemplateCategory;
   message: string;
 };
+
+export type ProfileLink = {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProfileLinkInput = {
+  name: string;
+  url: string;
+};

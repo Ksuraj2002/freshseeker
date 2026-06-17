@@ -1,4 +1,13 @@
-import type { AuthUser, Job, JobInput, JobStatus, MessageTemplate, MessageTemplateInput } from '@/lib/types';
+import type {
+  AuthUser,
+  Job,
+  JobInput,
+  JobStatus,
+  MessageTemplate,
+  MessageTemplateInput,
+  ProfileLink,
+  ProfileLinkInput,
+} from '@/lib/types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -112,6 +121,30 @@ export function updateTemplate(templateId: string, payload: MessageTemplateInput
 
 export function deleteTemplate(templateId: string) {
   return request<{ success: true }>(`/api/templates/${templateId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listProfileLinks() {
+  return request<ProfileLink[]>('/api/profile-links');
+}
+
+export function createProfileLink(payload: ProfileLinkInput) {
+  return request<ProfileLink>('/api/profile-links', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateProfileLink(linkId: string, payload: ProfileLinkInput) {
+  return request<ProfileLink>(`/api/profile-links/${linkId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteProfileLink(linkId: string) {
+  return request<{ success: true }>(`/api/profile-links/${linkId}`, {
     method: 'DELETE',
   });
 }

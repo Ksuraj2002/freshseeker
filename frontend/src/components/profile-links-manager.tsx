@@ -1,23 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { createProfileLink, deleteProfileLink, listProfileLinks, updateProfileLink } from '@/lib/api';
+import type { ProfileLink } from '@/lib/types';
 
-type ProfileLink = {
+const storageKey = 'freshseeker-profile-links';
+const migrationKey = 'freshseeker-profile-links-migrated';
+
+type LegacyProfileLink = {
   id: string;
   name: string;
   url: string;
   updatedAt: string;
 };
 
-const storageKey = 'freshseeker-profile-links';
-
-function isProfileLink(value: unknown): value is ProfileLink {
+function isProfileLink(value: unknown): value is LegacyProfileLink {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const item = value as Partial<ProfileLink>;
+  const item = value as Partial<LegacyProfileLink>;
   return (
     typeof item.id === 'string' &&
     typeof item.name === 'string' &&
@@ -71,6 +74,14 @@ function loadLinks() {
   }
 }
 
+function markLegacyLinksMigrated() {
+  window.localStorage.setItem(migrationKey, 'true');
+}
+
+function legacyLinksMigrated() {
+  return window.localStorage.getItem(migrationKey) === 'true';
+}
+
 function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat('en', {
     month: 'short',
@@ -96,19 +107,61 @@ export function ProfileLinksManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setLinks(loadLinks());
-      setLoaded(true);
-    });
+    let active = true;
+
+    listProfileLinks()
+      .then(async (data) => {
+        if (!active) {
+          return;
+        }
+
+        if (data.length === 0 && !legacyLinksMigrated()) {
+          const legacyLinks = loadLinks();
+          if (legacyLinks.length > 0) {
+            const migratedLinks = await Promise.all(
+              legacyLinks.flatMap((link) => {
+                const normalizedUrl = normalizeUrl(link.url);
+                if (!normalizedUrl) {
+                  return [];
+                }
+
+                return [
+                  createProfileLink({
+                    name: link.name,
+                    url: normalizedUrl,
+                  }),
+                ];
+              }),
+            );
+            markLegacyLinksMigrated();
+            if (active) {
+              setLinks(migratedLinks);
+              setNotice('Local links were synced to your account.');
+              setLoaded(true);
+            }
+            return;
+          }
+        }
+
+        markLegacyLinksMigrated();
+        setLinks(data);
+        setNotice('');
+        setLoaded(true);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setNotice(error instanceof Error ? error.message : 'Failed to load links.');
+          setLoaded(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
-
-  useEffect(() => {
-    if (loaded) {
-      window.localStorage.setItem(storageKey, JSON.stringify(links));
-    }
-  }, [links, loaded]);
 
   const recentLinks = useMemo(() => links.slice(0, 3), [links]);
 
@@ -118,7 +171,7 @@ export function ProfileLinksManager() {
     setEditingId(null);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const nextName = name.trim();
@@ -128,18 +181,21 @@ export function ProfileLinksManager() {
       return;
     }
 
-    const nextLink: ProfileLink = {
-      id: editingId ?? crypto.randomUUID(),
+    const payload = {
       name: nextName,
       url: nextUrl,
-      updatedAt: new Date().toISOString(),
     };
 
-    setLinks((current) =>
-      editingId ? current.map((link) => (link.id === editingId ? nextLink : link)) : [nextLink, ...current],
-    );
-    setNotice(editingId ? 'Link updated.' : 'Link saved.');
-    resetForm();
+    try {
+      const savedLink = editingId ? await updateProfileLink(editingId, payload) : await createProfileLink(payload);
+      setLinks((current) =>
+        editingId ? current.map((link) => (link.id === editingId ? savedLink : link)) : [savedLink, ...current],
+      );
+      setNotice(editingId ? 'Link updated.' : 'Link saved.');
+      resetForm();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Failed to save link.');
+    }
   };
 
   const handleEdit = (link: ProfileLink) => {
@@ -150,11 +206,19 @@ export function ProfileLinksManager() {
   };
 
   const handleDelete = (linkId: string) => {
-    setLinks((current) => current.filter((link) => link.id !== linkId));
-    if (editingId === linkId) {
-      resetForm();
-    }
-    setNotice('Link deleted.');
+    startTransition(() => {
+      deleteProfileLink(linkId)
+        .then(() => {
+          setLinks((current) => current.filter((link) => link.id !== linkId));
+          if (editingId === linkId) {
+            resetForm();
+          }
+          setNotice('Link deleted.');
+        })
+        .catch((error: unknown) => {
+          setNotice(error instanceof Error ? error.message : 'Failed to delete link.');
+        });
+    });
   };
 
   const handleCopy = async (link: ProfileLink) => {
@@ -253,7 +317,8 @@ export function ProfileLinksManager() {
 
           <button
             type="submit"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-teal-400 via-cyan-500 to-amber-400 px-5 py-3.5 text-sm font-semibold text-white transition duration-200 hover:scale-[1.01] hover:shadow-[0_18px_50px_rgba(20,184,166,0.3)]"
+            disabled={isPending}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-teal-400 via-cyan-500 to-amber-400 px-5 py-3.5 text-sm font-semibold text-white transition duration-200 hover:scale-[1.01] hover:shadow-[0_18px_50px_rgba(20,184,166,0.3)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {editingId ? 'Update link' : 'Save link'}
           </button>
@@ -324,7 +389,8 @@ export function ProfileLinksManager() {
                       <button
                         type="button"
                         onClick={() => handleDelete(link.id)}
-                        className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/20"
+                        disabled={isPending}
+                        className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Delete
                       </button>

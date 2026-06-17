@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createApp } from './app.js';
 import { createAuthStore } from './auth-store.js';
 import { connectDb } from './db.js';
+import { createProfileLinkStore } from './profile-link-store.js';
 import { createJobStore } from './store.js';
 import { createMessageTemplateStore } from './template-store.js';
 
@@ -12,7 +13,7 @@ if (mongoUri) {
   await connectDb(mongoUri);
 }
 
-const app = createApp(createJobStore(), createAuthStore(), createMessageTemplateStore());
+const app = createApp(createJobStore(), createAuthStore(), createMessageTemplateStore(), createProfileLinkStore());
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`);
   console.log(mongoUri ? 'Using MongoDB persistence.' : 'Using in-memory job storage. Set MONGO_URI for persistence.');
